@@ -4,11 +4,11 @@ This repository contains the IDS Communication Protocol (IDSCP2).
 
 [User Documentation](wiki/UserDocumentation)
 
-[User API](./UserAPI.md)
+[User API](wiki/UserAPI)
 
-[Driver Development Documentation](./DriverDevelopment.md)
+[Driver Development Documentation](wiki/DriverDevelopment)
 
-[IDSCP2 Core Documentation (FSM)](./Idscp2Core.md)
+[IDSCP2 Core Documentation (FSM)](wiki/Idscp2Core)
 
 ## Authors
 
