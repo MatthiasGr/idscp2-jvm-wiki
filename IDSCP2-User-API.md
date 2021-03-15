@@ -1,5 +1,3 @@
-# IDSCP2 User API
-
 ---
 This documentation describes the user API for the IDSCP2 protocol.
 All the files and directories are relative to *idscp2/src/main/kotlin/de/fhg/aisec/ids/idscp2/*.
