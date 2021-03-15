@@ -4,7 +4,7 @@
 This documentation describes the user API for the IDSCP2 protocol.
 All the files and directories are relative to *idscp2/src/main/kotlin/de/fhg/aisec/ids/idscp2/*.
 
-See [User Documentation](./UserDocumentation.md) for a showcase, how to configure and use an IDSCP2 peer.
+See [User Documentation](wiki/UserDocumentation) for a showcase, how to configure and use an IDSCP2 peer.
 
 ## Remote Attestation
 
@@ -103,7 +103,7 @@ that will create the Idscp2Server and wrap the SecureServer component, such that
 the IDSCP2 layer.
 
 In contrast, for connecting the user has to directly use the SecureChannelDriver. It returns a completable connection 
-future that must be handled via asynchronous future handlers. See [User Documentation](./UserDocumentation.md) for
+future that must be handled via asynchronous future handlers. See [User Documentation](wiki/UserDocumentation) for
 an example.
 
 ```kotlin
