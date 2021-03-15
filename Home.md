@@ -2,7 +2,7 @@ Welcome to the idscp2-java wiki!
 
 This repository contains the IDS Communication Protocol (IDSCP2).
 
-[User Documentation](UserDocumentation.md)
+[User Documentation](./UserDocumentation.md)
 
 [User API](./UserAPI.md)
 
