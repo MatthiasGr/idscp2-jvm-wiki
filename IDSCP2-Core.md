@@ -1,4 +1,3 @@
-# IDSCP2 Core
 The heart of the IDSCP2 protocol is an event-based finite state machine that
 consists of several states and transitions, which are triggered by events.
 
