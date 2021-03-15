@@ -1,6 +1,4 @@
-# User Documentation
-
-----------
+---------
 
 This documentation should give a short introduction how to configure and run an IDSCP2 peer. It is split into
 driver-selection and configuration in the first part, while the second part shows how to use the configuration
