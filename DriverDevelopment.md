@@ -1,4 +1,3 @@
-# Driver Development
 The IDSCP2 protocol allows the user to add custom driver implementations for the Remote Attestation, 
 the DAPS, as well as for the underlying Secure Channel. For this purpose, the IDSCP2 core provides
 several interfaces and abstract classes in *de.fhg.aisec.ids.idscp2/idscp_core/drivers/* that have
