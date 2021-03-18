@@ -303,11 +303,13 @@ The RatVerifierDriver and RatProverDriver classes extend a Thread, thus the cust
 the ***run*** method, which is actually the entry point of the drivers. When the IDSCP2 core
 receives a new message from the remote peers counterpart driver for the local peers RAT driver, it will delegate the message
 to the local RAT driver via the ***delegate*** function. The driver itself can communicate with its counterpart driver, 
-as well as with the FSM by sending RAT messages to the finite state machine via the RatVerifierFsmListener.
+as well as with the FSM by sending RAT messages to the finite state machine via the RatVerifierFsmListener interface.
 There are three types of messages: The RAT_OK, the RAT_FAILED and the RAT_MSG. The RAT_OK signals 
 the FSM that (in case of the verifier) that the RAT verification succeed. In contrast, the RAT_FAILURE 
 message tells the FSM that the verification has failed and thus the peer is not trusted.
 The RAT_MSG is not directed to the FSM, but to the remote counterpart RAT driver to exchange verification data.
+
+A RAT driver implementation might have to access the verified and trusted dynamic attribute token from the remote peer, when it contains information that are required for a successful attestation (e.g. TPM golden values). The RatVerifierFsmListener interface provides a getter method for this. (This is not supported by the RAT prover, only for the RAT verifier!)
 
 When the driver has been terminated by the IDSCP2 core via the ***terminate*** functionality, it is not longer able to send
 messages to the finite state machine, since the FSM will block the driver. Therefore, the driver
