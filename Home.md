@@ -10,7 +10,7 @@ This repository contains the IDS Communication Protocol (IDSCP2).
 
 [IDSCP2 Core Documentation (FSM)](wiki/IDSCP2-Core)
 
-[IDSCP2 AISEC DAPS Driver](wiki/AISEC-DAPS-Driver)
+[AISEC DAPS Driver](wiki/AISEC-DAPS-Driver)
 
 [TLS1.3 Secure Channel Driver](wiki/TLS1.3-Secure-Channel-Driver)
 
