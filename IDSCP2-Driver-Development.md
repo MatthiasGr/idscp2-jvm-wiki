@@ -37,29 +37,29 @@ interface DapsDriver {
 Implementing a custom DAPS driver requires to implement the DapsDriver interface that ensures your
 implementation to provide a ***token*** getter method, as well as a ***verifyToken*** function.
 
-The ***token()*** should return the currently valid DAT of the local IDSCP2 peer. In the case of our 
-DefaultDapsDriver implementation, it does the following steps:
+The ***token*** getter should return the currently valid DAT of the local IDSCP2 peer. In the case of our 
+AisecDaps implementation, it does the following steps:
 - Create an empty DAT (JWT) 
 - Set JWT values: Issuer, Subject, claims, ExpirationDate, IssuedAt, NotBeforeDate, Audience
 - Sign the DAT with your private key
-- Optional: Request the DAPS, which will attestate the DAT with further claims
+- Request the DAPS, which will attestate the DAT with further claims
 - Return the DAT as a ByteArray
 
 
-The ***verifyToken(dat)*** should check if all parts of the given DAT
+The ***verifyToken(dat, peerCertificate?)*** should check if all parts of the given DAT
 are valid and trusted and should return the remaining validity period of the DAT in seconds.
 It should do the following steps:
 - Verify DAT signature
 - Verify DAT attributes (Issuer, Subject, Audience, ...)
 - Verify if DAT is currently valid
 - Check Algorithm Constraints
-- Verify custom security requirements if available
+- Optional: Verify the peer certificate against allowed fingerprints if available
+- Optional: Verify custom security requirements if available
 - Calculate and return the remaining validity time
 
-If the DAT is not valid, you can return a non-positive value or throw an exception. Both will
-be recognized by the finite state machine and will shut down the connection immediately.
+If the DAT is not valid, you should throw a DatException. This will be recognized by the finite state machine and will shut down the connection immediately.
 
-Default implementations of the IDS DapsDriver, as well as the NullDaps can be found in 
+Default implementations of the AISEC DapsDriver, as well as the NullDaps can be found in 
 *de.fhg.aisec.ids.idscp2/default_drivers/daps/*.
 
 If you do not want to use a DAPS driver in your project, you can make use of a custom DapsDriver
@@ -78,27 +78,31 @@ which is why it is a bit more complex than the DapsDriver:
 ```kotlin
 package de.fhg.aisec.ids.idscp2.idscp_core.drivers
 
-import de.fhg.aisec.ids.idscp2.idscp_core.api.idscp_connection.Idscp2Connection
 import de.fhg.aisec.ids.idscp2.idscp_core.api.configuration.Idscp2Configuration
-import de.fhg.aisec.ids.idscp2.idscp_core.api.idscp_server.SecureChannelInitListener
-import de.fhg.aisec.ids.idscp2.idscp_core.secure_channel.SecureChannel
+import de.fhg.aisec.ids.idscp2.idscp_core.api.idscp_connection.Idscp2Connection
 import de.fhg.aisec.ids.idscp2.idscp_core.api.idscp_server.ServerConnectionListener
+import de.fhg.aisec.ids.idscp2.idscp_core.fsm.FSM
 import java.util.concurrent.CompletableFuture
 
 interface SecureChannelDriver<CC : Idscp2Connection, SecureChannelConfiguration> {
     /**
      * Asynchronous method to create a secure connection to a secure server
      */
-    fun connect(connectionFactory: (SecureChannel, Idscp2Configuration) -> CC,
-                     configuration: Idscp2Configuration,
-                     secureChannelConfig: SecureChannelConfiguration): CompletableFuture<CC>
+    fun connect(
+        connectionFactory: (FSM, String) -> CC,
+        configuration: Idscp2Configuration,
+        secureChannelConfig: SecureChannelConfiguration
+    ): CompletableFuture<CC>
 
     /**
      * Starting a secure channel listener
      */
-    fun listen(channelInitListener: SecureChannelInitListener<CC>,
-               serverListenerPromise: CompletableFuture<ServerConnectionListener<CC>>,
-                secureChannelConfig: SecureChannelConfiguration): SecureServer
+    fun listen(
+        connectionListenerPromise: CompletableFuture<ServerConnectionListener<CC>>,
+        secureChannelConfig: SecureChannelConfiguration,
+        serverConfiguration: Idscp2Configuration,
+        connectionFactory: (FSM, String) -> CC
+    ): SecureServer
 }
 ```
 The SecureChannelDriver is responsible for providing the IDSCP2 core an API
@@ -107,129 +111,203 @@ for connecting to a secure listener (client-side) and listening for incoming con
 #### SecureChannelDriver - Client
 Let's start with the client side. The goal of the ***connect*** method is to create a 
 client for a secure channel implementation (e.g. TLSv1.3 client) that will connect to a secure channel server
-(e.g. TLSv1.3 server). After the secure channel has been established, the new IDSCP2 connection will be initiated
-and will be passed to the IDSCP2 core. 
+(e.g. TLSv1.3 server). 
 
-As arguments, we have a connectionFactory, an Idscp2Configuration and the generic SecureChannelConfiguration given 
-by the IDSCP2 core. The connectionFactory together with the Idscp2Configuration can be used for creating 
+As arguments, we have a connectionFactory, an Idscp2Configuration and the generic SecureChannelConfiguration given by the IDSCP2 core. The connectionFactory together with the Idscp2Configuration can be used for creating 
 the IDSCP2 connection when the secure connection has been established, while the SecureChannelConfig
 could contain customized information for the SecureChannelDriver to create a secure channel. Such information
 could be the server address and port, keystore and truststore information, certificates, and so on.
 The return value of the ***connect*** function is a completable future that passes the new Idscp2Connection
-to the core.
+to the core when the IDSCP2 handshake has succeed.
 
-In the following you can see a very basic example how the ***connect*** functionality of the SecureChannelDriver
-could be implemented. First of all we have to create the connection future, which we will immidiately return.
-In a separate thread or any further async kotlin mechanism (e.g. coroutines) we create the client
-and connect it to the secure channel server using the generic SecureChannelConfig. 
-When the client has been connected, we create the secure channel and register it to the client.
-The SecureChannel class can be found in *de.fhg.aisec.ids.idscp2/idscp_core/secure_channel/*. It is the 
-interface between the finite state machine of the IDSCP2 and the secure channel endpoint (client or server thread).
-For this, it is important that your client implements the SecureChannelEndpoint interface, which is described below.
-Using the secure channel and the Idscp2Configuration given as an argument, the Idscp2Connction can be
-created via the connection factory. This IDSCP2 connection will then complete the future.
+In the following you can see an example how the ***connect*** functionality of the SecureChannelDriver could be implemented. First of all we have to create the connection future, which we will immediately return. In a separate thread or any further async Kotlin mechanism (e.g. coroutines) we create the client and connect it to the secure channel server using the generic SecureChannelConfig. 
+When the client has been connected, the connection future has not been cancelled by the user and the hostname verification succeed, we create the secure channel and register it to the client. The SecureChannel class can be found in *de.fhg.aisec.ids.idscp2/idscp_core/secure_channel/*. It is the interface between the finite state machine of the IDSCP2 and the secure channel endpoint (client or server thread). For this, it is important that your client implements the SecureChannelEndpoint interface, which is described below.
 
-In the end we have to check if the completable future has already been cancelled by the core. If so, we have to
-close the connection again to lock the connection and cleanup the secure channel.
+Further, the SecureChannel optionally takes the remote peer certificate (X509) as argument. The certificate is stored in the FSM and might be used in the DAPS for validating the peer against the DAT. 
 
-The SecureChannel takes optionally the remote peer certificate (X509Certificate) as argument. The
-certificate is stored in the FSM and might be used in the DAPS driver for validating the peer against
-its DAT.
+If any of the previous steps have failed, the connectionFuture has to be completed exceptionally and the client has to be cleaned up.
+
+Using the secure channel, the Idscp2Configuration, the connectionFactory and the connectionFuture, the IDSCP2 handshake can be initiated using the AsyncIdscp2Factory, located at *de.fhg.aisec.ids.idscp2/idscp_core/fsm/*, using the **initiateIdscp2Connection** method. It returns false, if the connection has been cancelled by the user, otherwise true. When it fails, the secure channel will automatically be cleaned up and the future will be completed exceptionally, so the driver does not have to do anything else. When it succeeds, the driver can start the client's socket listener thread.
 
 ```kotlin
 class CustomSecureChannelDriver<CC: Idscp2Connection> : SecureChannelDriver<CC, CustomScConfig> {
-    override fun connect(connectionFactory: (SecureChannel, Idscp2Configuration) -> CC,
-                                      configuration: Idscp2Configuration,
-                                      secureChannelConfig: CustomScConfig): CompletableFuture<CC> { 
-    val connectionFuture = CompletableFuture<CC>() //completable future for Idscp2Connection 
-    // async create and connect secure channel client to secure channel server given the secureChannelConfig
-    thread {
-        val client = MyClient()
-        val secureSession = client.connect(secureChannelConfig.host, secureChannelConfig.serverPort)
-        // securely connected
-        // create a secure channel with client as endpoint and optionally the peer certificate and register it to the client
-        val secureChannel = SecureChannel(client, secureSession.peerCertificate)
-        client.setSecureChannel(secureChannel)
-        // create the connection via the connection factory
-        val idscp2Connection = connectionFactory(secureChannel, configuration)
-        // complete the feature
-        connectionFuture.complete(idscp2Connection)
-        if (connectionFuture.isCancelled)
-            idscp2Connection.close()
-    }
+    override fun connect(
+        connectionFactory: (FSM, String) -> CC,
+        configuration: Idscp2Configuration,
+        secureChannelConfig: CustomScConfig
+    ): CompletableFuture<CC> { 
+        
+        // create the connection future for async connect
+        val connectionFuture = CompletableFuture<CC>() //completable future for Idscp2Connection 
+        
+        // run async connect
+        thread {
 
-    return connectionFuture
+            try {
+                // create TLS client and connect to server, throws exception on failure
+                val client = MyClient()
+                val secureSession = client.connect(secureChannelConfig.host, secureChannelConfig.serverPort)
+            
+                if (connectionFuture.isCancelled) {
+                    client.disconnect()
+                    return
+                }
+
+                // hostname verification, throws exception if not trusted
+                customHostnameVerification(secureChannelConfig.host, secureSession.peerCertificate)
+
+                // create a secure channel with client as endpoint and optionally the peer certificate 
+                val secureChannel = SecureChannel(client, secureSession.peerCertificate)
+                
+                // register secure channel as communication listener to the client
+                client.setSecureChannel(secureChannel)
+
+                // init the IDSCP2 handshake using the AsyncIdscp2Factory
+                // AsyncIdscp2Factory will return false, if the connectionFuture has been cancelled by the user
+                // on failure it will close the secure channel
+                // this is the correct time for starting the client's socket listener thread
+                val success = AsyncIdscp2Factory.initiateIdscp2Connection(
+                                secureChannel, configuration, connectionFactory, connectionFuture)
+
+                if (success) {
+                    client.startInputListener()
+                }
+            } catch (e: Exception) {
+                // something went wrong, close connection and complete future exceptionally
+                client.disconnect()
+                connectionFuture.completeExceptionally(
+                    Idscp2Exception("Secure connection failed", e)
+                )
+            }
+        }
+
+        // return future immediately
+        return connectionFuture
     }
 }
 ```
 
 #### SecureChannelDriver - Server
-On the server side it is a little different, since there is not the one Idscp2Connection
-that will be created, but a server that will accept multiple connections.
-
-Similar to the client-side we have a custom secure channel config, which provides
-information required for establishing secure connections, such as the 
-port, the server should listen on, or keystore and truststore information.
-Further, it takes a SecureChannelInitListener, which is actually the Idscp2Server, that expects a 
-new SecureChannel for every new ServerThread that has been started at the SecureServer. 
+On the server side it is a little different, since a server that will accept multiple connections. Similar to the client-side we have the custom secure channel configuration, which provides information required for establishing secure connections, such as the port, the server should listen on, or Keystore and Truststore information, the IDSCP2 configuration that is used for initiating the FSM of a connection and a IDSCP2 connectionFactory. Further, it takes a future for a ServerConnectionListener, which is actually the future Idscp2Server that is listen on new IDSCP2 connections.
 
 The idea is the following: 
 The ***listen*** method creates a new secure server and runs it asynchronous. 
 ```kotlin
 class CustomSecureChannelDriver<CC : Idscp2Connection> : SecureChannelDriver<CC, CustomScConfig> {
-    override fun listen(channelInitListener: SecureChannelInitListener<CC>,
-               serverListenerPromise: CompletableFuture<ServerConnectionListener<CC>>,
-                secureChannelConfig: CustomScConfig): SecureServer {
+
+    override fun listen(        
+        connectionListenerPromise: CompletableFuture<ServerConnectionListener<CC>>,
+        secureChannelConfig: NativeTlsConfiguration,
+        serverConfiguration: Idscp2Configuration,
+        connectionFactory: (FSM, String) -> CC
+    ): SecureServer {
         // create a secure server and run it async
-        val secureServer = MySecureServer(secureChannelConfig, channelInitListener, serverListenerPromise)
-        thread {
-          secureServer.run()
-        }
+        val secureServer = MySecureServer(connectionListenerPromise, secureChannelConfig, serverConfiguration, connectionFactory)
+        secureServer.runAsync()
         return secureServer
     }
+
 }
 ```
 The driver developer himself is responsible for handling new secure connections at the secure server.
-Usually, any kind of ServerConnectionThread is created whenever a new client connects to the secure server.
-Such a ServerConnectionThread, which has to implement again the SecureChannelEndpoint interface, 
-first waits until the secure handshake is done and thus the connection is trusted.
+Usually, any kind of ServerConnectionThread is created whenever a new client connects to the secure server. Further, for each new ServerConnectionThread, the secure server has to create a connectionFuture. It will be passed to the ServerConnectionThread and should register the new Idscp2Connection to the Idscp2Server on completion using the ServerConnectionListener:
+
+```kotlin
+class CustomSecureServer<CC : Idscp2Connection>(
+    private val connectionListenerPromise: CompletableFuture<ServerConnectionListener<CC>>,
+    private val scConfig: CustomScConfig,
+    private val serverConfiguration: Idscp2Configuration,
+    private val connectionFactory: (FSM, String) -> CC
+) {
+    
+    ...
+
+    fun runAsync() {
+        Thread {
+            while(isRunning) {
+                
+                // wait for new incoming connections
+                val connectionSocket = serverSocket.accept()
+             
+                // create a connectionFuture that registers the connection at the Idscp2Server
+                val connectionFuture = CompletableFuture<CC>()
+                connectionFuture.thenAccept { connection ->
+                    connectionListenerPromise.thenAccept { listener ->
+                        listener.onConnectionCreated(connection)
+                    }
+                }.exceptionally {
+                    // no IDSCP2 connection has been created
+                    LOG.warn("Idscp2Connection creation failed: {}", it)
+                    null
+                }
+
+                // created the ServerConnectionThread
+                val thread = SecureConnectionThread(connectionSocket, scConfig, connectionFuture, serverConfig, connectionFactory)
+                thread.run()
+            }
+        }
+    }
+
+    ... 
+}
+```
+
+Such a ServerConnectionThread, which has to implement again the SecureChannelEndpoint interface, first waits until the secure handshake is done and thus the connection is trusted. Then the implementation is very similar to the client-side. First we create the secure channel using the ServerConnectionThread as endpoint and the peerCertificate as optional parameter. Then the Idscp2Connection creation is initiated via the AsyncIdscp2Factory. On error, the connectionFuture will be completed exceptionally and the ServerConnectionThread will terminate:
 
 ```kotlin
 class CustomSecureServerThread<CC : Idscp2Connection> internal constructor(
-        private val connectionSocket: Socket,
-        private val channelInitListener: SecureChannelInitListener<CC>,
-        private val serverListenerPromise: CompletableFuture<ServerConnectionListener<CC>>) :
-        Thread(), SecureChannelEndpoint {
+    private val socket: CustomSocket,
+    private val connectionFuture: CompletableFuture<CC>,
+    private val scConfig: CustomScConfig,
+    private val configuration: Idscp2Configuration,
+    private val connectionFactory: (FSM, String) -> CC
+) : Thread(), SecureChannelEndpoint {
     
     private lateinit var secureChannel:  SecureChannelListener
+
     // run method of server thread
     override fun run() {
-        //TODO do any kind of secure handshake ...
-        // securely connected
-        // create a secure channel with the server thread itself as endpoint and the optional peer cert
-        secureChannel = SecureChannel(this, secureSession.peerCertificate) 
-        channelInitListener.onSecureChannel(secureChannel, serverListenerPromise) // create the new idscp connection
-        
-        //TODO start listening on socket and listening on messages from the secureChannel ...
+
+        try {
+            // do handshake and wait until channel is secure
+            val secureSession = socket.doHandshake()
+
+            // TODO optionally hostname verification on server-side via static IPs, DNS, TTP
+
+            // (lateinit) create a secure channel with this thread as endpoint and optionally the peer certificate
+            secureChannel = SecureChannel(this, secureSession.peerCertificate)
+              
+            // init the IDSCP2 handshake using the AsyncIdscp2Factory
+            // AsyncIdscp2Factory will return false, if the connectionFuture has been cancelled by the user
+            // on failure it will close the secure channel
+            // this is the correct time for starting the client's socket listener thread
+            val success = AsyncIdscp2Factory.initiateIdscp2Connection(
+                                secureChannel, configuration, connectionFactory, connectionFuture)
+
+            if (!success) {
+                return
+            }
+        } catch (e: Exception) {
+            // something went wrong, close connection and complete future exceptionally
+            this.disconnect()
+            connectionFuture.completeExceptionally(
+                Idscp2Exception("Secure connection failed", e)
+            )
+            return
+        }
+
+        // TODO start listening on socket and pass messages to the secureChannel
     }    
     
 }
 ```
-Afterwards, it will create a SecureChannel using itself as SecureChannelEndpoint.
-The Idscp2Connection will be created by the ***channelInitListener.onSecureChannel***. The SecureChannelInitListener
-is actually the Idscp2Server, which will register the new Idscp2Connection to a connection listener via
-the serverListenerPromise.
 
 See *.fhg.aisec.ids.idscp2/default_drivers/secure_channel/tlsv1_3/NativeTlsDriver.kt*
 for an example implementation of the SecureChannelDriver interface.
 
 ### SecureChannelEndpoint
 
-We have already seen the use of the SecureChannelEndpoint interface above. 
-Both, the secure client and the secure server thread (they are the instances
-that acts, i.e. read and write, directly on the connection socket) have to implement
-the SecureChannelEndpoint interface. The idea is that the SecureChannelEndpoint abstracts the underlying
-socket, such that the IDSCP2 core is able to interact with any kind of underlying endpoint.
+We have already seen the use of the SecureChannelEndpoint interface above. Both, the secure client and the secure server thread (they are the instances that acts, i.e. read and write, directly on the connection socket) have to implement the SecureChannelEndpoint interface. The idea is that the SecureChannelEndpoint abstracts the underlying socket, such that the IDSCP2 core is able to interact with any kind of underlying endpoint.
 
 ```kotlin
 package de.fhg.aisec.ids.idscp2.idscp_core.drivers
@@ -243,6 +321,17 @@ interface SecureChannelEndpoint {
 
     /**
      * Send data from the secure channel endpoint to the peer connector
+     *
+     * ATTENTION: The developer must ensure not to trigger the FSM by another event from the thread
+     * that actually executes the SecureChannelEndpoint.send(bytes) method, but must simply return
+     * true or false, regarding the success of this method. The issue which occurs by using the thread
+     * of the send() method is that the FSM is blocked within a transition until send() returns
+     * and the the following state of the FSM depends on the return value. When this thread would trigger
+     * the FSM again within the current transition then first the new transition would be executed
+     * but than it would be overwritten by the current one. To avoid this case of misuse, the FSM
+     * will throw a Runtime Exception to let the driver developer know, that this is not a good idea.
+     * For more information, see the checkForFsmCycles() method within the FSM
+     *
      * return true when data has been sent, else false
      */
     fun send(bytes: ByteArray): Boolean
@@ -254,23 +343,16 @@ interface SecureChannelEndpoint {
 }
 ```
 
-The interface implements a ***close*** methode, that should close the socket and stop the endpoint thread, 
-a ***send*** method, that should write messages to the socket and an ***isConnected*** method, that checks if the secureChannelEndpoint
-is still connected. 
+The interface implements a ***close*** methode, that should close the socket and stop the endpoint thread, a ***send*** method, that should write messages to the socket and an ***isConnected*** method, that checks if the secureChannelEndpoint is still connected. 
 
 When receiving new messages from the remote peer on the socket, as well as EOF or any socket error
-this should be passed directly to the SecureChannelListener.
+this should be passed directly to the SecureChannel.
 
-In *.fhg.aisec.ids.idscp2/default_drivers/secure_channel/tlsv1_3/* see
-*client/TLSClient.kt* as well as *server/TLSServerThread* as examples
-for the SecureChannelEndpoint.
-
+In *.fhg.aisec.ids.idscp2/default_drivers/secure_channel/tlsv1_3/* see *client/TLSClient.kt* as well as *server/TLSServerThread* as examples for the SecureChannelEndpoint.
 
 ### SecureServer 
-The last component of the secure channel driver is the secure server, which 
-we have also seen above in the ***SecureChannelDriver.listen*** method. The implementation is
-largely up to the driver developer. He should only provide a ***safeStop***
-functionality to stop the secure server, as well as an ***isRunning*** checker.
+The last component of the secure channel driver is the secure server, which we have also seen above in the ***SecureChannelDriver.listen*** method. The implementation is largely up to the driver developer. He should only provide a ***safeStop*** functionality to stop the secure server, as well as an ***isRunning*** checker.
+
 ```kotlin
 package de.fhg.aisec.ids.idscp2.idscp_core.drivers
 
