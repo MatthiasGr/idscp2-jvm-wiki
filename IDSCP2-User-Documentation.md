@@ -230,11 +230,9 @@ NativeTlsDriver using the Idscp2Configuration and the NativeTlsConfiguration as 
 async, we have to register an async completion handler to the returning connection future, which will be triggered
 when the connection future is successfully completed. 
 Within this handler, we have to register our connection listener that will be notified on new IDSCP2 messages 
-(Idscp2MessageListener), as well as on errors and connection closure (Idscp2ConnectionListener). Afterwards, we have
-to unlock messaging.
+(Idscp2MessageListener), as well as on errors and connection closure (Idscp2ConnectionListener). Afterwards, we have to unlock messaging.
 
-You might pass the IDSCP2 connection to any connection wrapper or local variable outside of the future handler to make
-it available for further usage, such as sending data to the peer.
+You might pass the IDSCP2 connection to any connection wrapper or local variable outside of the future handler to make it available for further usage, such as sending data to the peer.
 
 ```kotlin
 import java.util.concurrent.CompletableFuture
@@ -274,9 +272,14 @@ fun main() {
             
             // unlock messaging, since all listeners have been registered now
             connection.unlockMessaging()
-            
-            // TODO act on connection
+
+     }.exceptionally {t: Throwable? ->
+            // failure
+            null
      }
+
+     val connection = connectionFuture.get()     
+     // TODO act on connection
      ...
 }
 ```
@@ -285,12 +288,10 @@ fun main() {
 
 The IDSCP2 server component is responsible for accepting new IDSCP2 connection requests from other peers. For this
 purpose, the IDSCP2 protocol provides an IDSCP2EndpointListener, which can be found at *idscp2/idscp_core/api/*.
-It implements the **onConnection** method, which is triggered when a new IDSCP2 peer has connected to the IDSCP2 server,
-as well as an **onError** method to keep track of any server errors.
+It implements the **onConnection** method, which is triggered when a new IDSCP2 peer has connected to the IDSCP2 server.
 
 Similar to the IDSCP2 client component, you have to register the connection and message listeners to the new connection.
-Further, you might wrap or pass the connection to any service, to make it available outside of the **onConnection** method, 
-from where your application can act on the connection, e.g. sending data.
+Further, you might wrap or pass the connection to any service, to make it available outside of the **onConnection** method, from where your application can act on the connection, e.g. sending data.
 
 In the following you can see a custom endpoint listener that implements the Idscp2EndpointListener interface.
 
@@ -319,25 +320,16 @@ class CustomIdscp2EndpointListener : Idscp2EndpointListener<Idscp2Connection> {
             //TODO handle data
         }
         
-        connection.unlockMessaging()
-        
         //TODO act on connection
-    }
-    
-    override fun onError(t: Throwable) {
-        //TODO handle IDSCP2 server errors
     }
 }
 ```
 
 For creating an Idscp2Server using the Idscp2ServerFactory (*idscp2/idscp_core/api/idscp_server/Idscp2ServerFactory*), 
 you have to create such a custom endpoint listener instance, which will then be registered to the Idscp2Server during
-Idscp2Server construction. This endpoint listener can be seen as the single instance that will be notified when new
-connections or errors are received / occur at the Idscp2Server.
+Idscp2Server construction. This endpoint listener can be seen as the single instance that will be notified when new connections are received at the Idscp2Server.
 
-Beside the Idscp2EndpointListener, the Idscp2ServerFactory takes the Idscp2Configuration, the SecureChannelDriver and
-the custom SecureChannel configuration as arguments and returns the factory that can be used for creating a 
-running Idscp2Server via the **listen** method. It can be terminated again later by the **terminate** method.
+Beside the Idscp2EndpointListener, the Idscp2ServerFactory takes the Idscp2Configuration, the SecureChannelDriver and the custom SecureChannel configuration as arguments and returns the factory that can be used for creating a running Idscp2Server via the **listen** method. It can be terminated again later by the **terminate** method.
 
 ```kotlin
 import de.fhg.aisec.ids.idscp2.idscp_core.api.Idscp2EndpointListener
