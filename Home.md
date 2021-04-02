@@ -17,6 +17,8 @@ This repository contains the IDS Communication Protocol (IDSCP2).
 
 [TLS1.3 Secure Channel Driver](wiki/TLS1.3-Secure-Channel-Driver)
 
+The RAT driver implementations are located at https://github.com/industrial-data-space/idscp2-rat-drivers/tree/develop.
+
 ## Authors
 
 - Leon Beckmann [leonbeckmann at GitHub](https://github.com/leonbeckmann)
