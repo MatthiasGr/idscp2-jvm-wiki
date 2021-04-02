@@ -98,7 +98,7 @@ The SecureChannelDriver interface is implemented by the SecureChannelDriver impl
 for starting the SecureServer (e.g. TLSv1.3 server) or for connecting to IDSCP2 peers.
 First one is not directly used by the user, instead the SecureChannelDriver is passed to the Idscp2ServerFactory
 that will create the Idscp2Server and wrap the SecureServer component, such that the user does only have to deal with
-the IDSCP2 layer.
+the secure channel layer.
 
 In contrast, for connecting the user has to directly use the SecureChannelDriver. It returns a completable connection 
 future that must be handled via asynchronous future handlers. See [User Documentation](IDSCP2-User-Documentation) for
@@ -107,15 +107,16 @@ an example.
 ```kotlin
 interface SecureChannelDriver<CC : Idscp2Connection, SecureChannelConfiguration> {
     fun connect(
-        connectionFactory: (SecureChannel, Idscp2Configuration) -> CC,
+        connectionFactory: (FSM, String) -> CC,
         configuration: Idscp2Configuration,
         secureChannelConfig: SecureChannelConfiguration
     ): CompletableFuture<CC>
 
     fun listen(
-        channelInitListener: SecureChannelInitListener<CC>,
-        serverListenerPromise: CompletableFuture<ServerConnectionListener<CC>>,
-        secureChannelConfig: SecureChannelConfiguration
+        connectionListenerPromise: CompletableFuture<ServerConnectionListener<CC>>,
+        secureChannelConfig: SecureChannelConfiguration,
+        serverConfiguration: Idscp2Configuration,
+        connectionFactory: (FSM, String) -> CC
     ): SecureServer
 }
 ```
@@ -182,7 +183,7 @@ fun removeMessageListener(listener: Idscp2MessageListener): Boolean
 
 To avoid race conditions that could occur when the listeners are not registered yet while the
 connection already receives some data from the remote peer, the user has to unlock messaging after
-listener registration:
+listener registration for a client connection:
 ```kotlin   
 fun unlockMessaging()
 ```
@@ -229,12 +230,21 @@ Check if the connection is locked forever.
 val isClosed: Boolean
 ```
 
+Get the local DAT.
+```kotlin
+val localDynamicAttributeToken: ByteArray
+```
+
+Get the peer's internal connection ID.
+```kotlin
+val id: String
+```
+
 The Idscp2Connection, as well as the following listeners, can be found at *idscp_core/api/idscp_connection/*.
 
 ### Connection Listener
 
-The connection listener interface has to be implemented by an instance that has to be registered to the Idscp2Connection 
-for keeping track of the connection state.
+The connection listener interface has to be implemented by an instance that has to be registered to the Idscp2Connection for keeping track of the connection state.
 
 ```kotlin
 interface Idscp2ConnectionListener {
@@ -287,9 +297,9 @@ starting a secure server on which the Idscp2Server is based on, as well as the i
 SecureChannelConfiguration, which might contain address and security information.
 
 ```kotlin
-connectionFactory: (SecureChannel, Idscp2Configuration) -> CC,
+connectionFactory: (FSM, String) -> CC,
 endpointListener: Idscp2EndpointListener<CC>,
-configuration: Idscp2Configuration,
+serverConfiguration: Idscp2Configuration,
 secureChannelDriver: SecureChannelDriver<CC, SecureChannelConfiguration>,
 secureChannelConfig: SecureChannelConfiguration
 ```
@@ -306,12 +316,11 @@ The Idscp2ServerFactory can be found at *idscp_core/api/idscp_server/*.
 ### Idscp2EndpointListener
 
 The Idscp2EndpointListener is registered at the Idscp2Server via the Idscp2ServerFactory to keep track
-of new connections and server errors.
+of new connections.
 
 ```kotlin
 interface Idscp2EndpointListener<T: Idscp2Connection> {
     fun onConnection(connection: T)
-    fun onError(t: Throwable)
 }
 ```
 
