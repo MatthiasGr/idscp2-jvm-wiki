@@ -372,49 +372,49 @@ interface SecureServer {
 See *.fhg.aisec.ids.idscp2/default_drivers/secure_channel/tlsv1_3/server/TLSServer* for a
 secure TLSv1.3 server example.
 
-## Custom Rat Driver
-The Remote Attestation Drivers (RAT) are responsible for verifying whether the remote peer is in a trusted
-state (RAT Verifier), as well as proving its own trusted state to the remote peer (RAT Prover).
-This is why every IDSCP2 peer needs two different RAT drivers, one verifier and one prover.
+## Custom Ra Driver
+The Remote Attestation (RA) Drivers are responsible for verifying whether the remote peer is in a trusted
+state (RA Verifier), as well as proving its own trusted state to the remote peer (RA Prover).
+This is why every IDSCP2 peer needs two different RA drivers, one verifier and one prover.
 
 Since both drivers implements almost the same abstract class (up to some small restrictions to avoid a prover
 to act as a verifier and the other way around), only the implementation of a custom
-RAT verifier will be shown here.
+RA verifier will be shown here.
 
-The RatVerifierDriver and RatProverDriver classes extend a Thread, thus the custom drivers have to override
+The RaVerifierDriver and RaProverDriver classes extend a Thread, thus the custom drivers have to override
 the ***run*** method, which is actually the entry point of the drivers. When the IDSCP2 core
-receives a new message from the remote peers counterpart driver for the local peers RAT driver, it will delegate the message
-to the local RAT driver via the ***delegate*** function. The driver itself can communicate with its counterpart driver, 
-as well as with the FSM by sending RAT messages to the finite state machine via the RatVerifierFsmListener interface.
-There are three types of messages: The RAT_OK, the RAT_FAILED and the RAT_MSG. The RAT_OK signals 
-the FSM that (in case of the verifier) that the RAT verification succeed. In contrast, the RAT_FAILURE 
+receives a new message from the remote peers counterpart driver for the local peers RA driver, it will delegate the message
+to the local RA driver via the ***delegate*** function. The driver itself can communicate with its counterpart driver, 
+as well as with the FSM by sending RA messages to the finite state machine via the RaVerifierFsmListener interface.
+There are three types of messages: The RA_OK, the RA_FAILED and the RA_MSG. The RA_OK signals 
+the FSM that (in case of the verifier) that the RA verification succeed. In contrast, the RA_FAILURE 
 message tells the FSM that the verification has failed and thus the peer is not trusted.
-The RAT_MSG is not directed to the FSM, but to the remote counterpart RAT driver to exchange verification data.
+The RA_MSG is not directed to the FSM, but to the remote counterpart RA driver to exchange verification data.
 
-A RAT driver implementation might have to access the verified and trusted dynamic attribute token from the remote peer, when it contains information that are required for a successful attestation (e.g. TPM golden values). The RatVerifierFsmListener interface provides a getter method for this. (This is not supported by the RAT prover, only for the RAT verifier!)
+A RA driver implementation might have to access the verified and trusted dynamic attribute token from the remote peer, when it contains information that are required for a successful attestation (e.g. TPM golden values). The RaVerifierFsmListener interface provides a getter method for this. (This is not supported by the RA prover, only for the RA verifier!)
 
 When the driver has been terminated by the IDSCP2 core via the ***terminate*** functionality, it is not longer able to send
 messages to the finite state machine, since the FSM will block the driver. Therefore, the driver
 should terminate itself and exit the ***run*** method.
 
-The generic RAT config is full customized and provides the possibility to initialize
-the RAT driver with pre-configured attributes. The ***setConfig*** method will always be called
+The generic RA config is full customized and provides the possibility to initialize
+the RA driver with pre-configured attributes. The ***setConfig*** method will always be called
 after the driver has been created and before it will be executed.  
 
 ```kotlin
 package de.fhg.aisec.ids.idscp2.idscp_core.drivers
-import de.fhg.aisec.ids.idscp2.idscp_core.fsm.fsmListeners.RatVerifierFsmListener
+import de.fhg.aisec.ids.idscp2.idscp_core.fsm.fsmListeners.RaVerifierFsmListener
 
-abstract class RatVerifierDriver<in VC>(protected val fsmListener: RatVerifierFsmListener) : Thread() {
+abstract class RaVerifierDriver<in VC>(protected val fsmListener: RaVerifierFsmListener) : Thread() {
     protected var running = true
 
     /**
-     * Delegate the IDSCP2 message to the RatVerifier driver
+     * Delegate the IDSCP2 message to the RaVerifier driver
      */
     open fun delegate(message: ByteArray) {}
 
     /**
-     * Terminate and cancel the RatVerifier driver
+     * Terminate and cancel the RaVerifier driver
      */
     fun terminate() {
         running = false
@@ -422,26 +422,26 @@ abstract class RatVerifierDriver<in VC>(protected val fsmListener: RatVerifierFs
     }
 
     open fun setConfig(config: VC) {
-        LOG.warn("Method 'setConfig' for RatVerifierDriver is not implemented")
+        LOG.warn("Method 'setConfig' for RaVerifierDriver is not implemented")
     }
 }
 ```
 
-In the following, the implementation of the NullRat is shown.
+In the following, the implementation of the NullRa is shown.
 The basic concept is a message queue that stores the delegated messages from the FSM.
-When a message from the remote RAT prover is available, we will return a RAT_MSG and will
-then send the RAT Ok the FSM, which means that the verification succeed.
+When a message from the remote RA prover is available, we will return a RA_MSG and will
+then send the RA Ok the FSM, which means that the verification succeed.
 
 ```kotlin
-package de.fhg.aisec.ids.idscp2.default_drivers.rat.`null`
+package de.fhg.aisec.ids.idscp2.default_drivers.remote_attestation.`null`
 
-import de.fhg.aisec.ids.idscp2.idscp_core.drivers.RatVerifierDriver
+import de.fhg.aisec.ids.idscp2.idscp_core.drivers.RaVerifierDriver
 import de.fhg.aisec.ids.idscp2.idscp_core.fsm.InternalControlMessage
-import de.fhg.aisec.ids.idscp2.idscp_core.fsm.fsmListeners.RatVerifierFsmListener
+import de.fhg.aisec.ids.idscp2.idscp_core.fsm.fsmListeners.RaVerifierFsmListener
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 
-class NullRatVerifier(fsmListener: RatVerifierFsmListener) : RatVerifierDriver<Unit>(fsmListener) {
+class NullRaVerifier(fsmListener: RaVerifierFsmListener) : RaVerifierDriver<Unit>(fsmListener) {
     private val queue: BlockingQueue<ByteArray> = LinkedBlockingQueue()
     override fun delegate(message: ByteArray) {
         queue.add(message)
@@ -454,16 +454,16 @@ class NullRatVerifier(fsmListener: RatVerifierFsmListener) : RatVerifierDriver<U
             // was interrupted, check if we are still running or if the FSM terminates us
             if (running) {
                 // we are still running, tell the FSM we have failed
-                fsmListener.onRatVerifierMessage(InternalControlMessage.RAT_VERIFIER_FAILED)
+                fsmListener.onRaVerifierMessage(InternalControlMessage.RA_VERIFIER_FAILED)
             }
             return
         }
-        // send one message and the RAT OK
-        fsmListener.onRatVerifierMessage(InternalControlMessage.RAT_VERIFIER_MSG, "".toByteArray())
-        fsmListener.onRatVerifierMessage(InternalControlMessage.RAT_VERIFIER_OK)
+        // send one message and the RA OK
+        fsmListener.onRaVerifierMessage(InternalControlMessage.RA_VERIFIER_MSG, "".toByteArray())
+        fsmListener.onRaVerifierMessage(InternalControlMessage.RA_VERIFIER_OK)
     }
 }
 ```
 
-The driver developer has to make sure, that his RAT prover and RAT verifier implementations
+The driver developer has to make sure, that his RA prover and RA verifier implementations
 can communicate with each other correctly. Otherwise, the IDSCP2 handshake will fail.

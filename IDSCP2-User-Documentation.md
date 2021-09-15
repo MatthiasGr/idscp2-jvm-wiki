@@ -11,67 +11,67 @@ to start an IDSCP2 server or initiate an IDSCP2 connection as an IDSCP2 client.
 The IDSCP2 protocol consists of the following drivers:
 
 * The DAPS driver, responsible for providing and verifying dynamic attribute authorization tokens (DATs)
-* The RAT prover and RAT verifier drivers, responsible for the remote attestation between peers (e.g. TPM)
+* The RA prover and RA verifier drivers, responsible for the remote attestation between peers (e.g. TPM)
 * The SecureChannel driver, which specifies the underlying protected communication channel (e.g. TLSv1.3)
 
 When starting the IDSCP2 peer, the user has to select the driver implementation that should be used,
 before all of those drivers have to be configured by their implementation-specific configurations.
 
-### RAT Driver Setup
+### RA Driver Setup
 
 The remote attestation drivers are used for proving and verifying the trusted state of the local peer to the remote
-peer. Your application might support different RAT driver implementations, such as TPM or Intel SGX.
-The IDSCP2 protocol will then select the RAT cipher suite regarding the preferences of the corresponding RAT verifier.
-The preferences / priorities are determined by the ordering of the RAT cipher suites, i.e. the most preferred cipher
+peer. Your application might support different RA driver implementations, such as TPM or Intel SGX.
+The IDSCP2 protocol will then select the RA cipher suite regarding the preferences of the corresponding RA verifier.
+The preferences / priorities are determined by the ordering of the RA cipher suites, i.e. the most preferred cipher
 suite is placed at index zero, while the least preferred one must be at the end of the cipher suites array.
-The cipher suites, together with the RAT timeout interval, build the AttestationConfig, which will be used later for
+The cipher suites, together with the RA timeout interval, build the AttestationConfig, which will be used later for
 configuring the IDSCP2 peer. The timeout interval specifies the interval between two attestations and will trigger a
 re-attestation of the remote peer when the timeout occurs.
 
-We make use of static RAT registries that are used by the IDSCP2 protocol for creating new RAT driver instances on the
-fly when attestation is required. Thus, you have to ensure that all the drivers from your RAT cipher suites are
+We make use of static RA registries that are used by the IDSCP2 protocol for creating new RA driver instances on the
+fly when attestation is required. Thus, you have to ensure that all the drivers from your RA cipher suites are
 registered to the registries with the same unique identifier. The protocol will then check if the driver is available
-in the registry after the RAT cipher suite is selected. Some driver implementation might use a driver-specific 
+in the registry after the RA cipher suite is selected. Some driver implementation might use a driver-specific 
 configuration that will be available to your driver before executing.
-The RAT registries are located at *idscp2/idscp_core/rat_registry/*, the AttestationConfig is located
+The RA registries are located at *idscp2/idscp_core/ra_registry/*, the AttestationConfig is located
 at *idscp2/idscp_core/api/configuration/*.
 
 In the following you see how it would look like to register an Intel SGX driver and a TPM driver. In this case, the SGX
-driver is preferred over the TPM driver for both, the RAT verifier as well as for the RAT prover mechanism.
-Therefore, the SGX driver has the lower index within the RAT suites.
-The RAT timeout interval is set to one hour, which means that after every full hour, a re-attestation will take place
+driver is preferred over the TPM driver for both, the RA verifier and for the RA prover mechanism.
+Therefore, the SGX driver has the lower index within the RA suites.
+The RA timeout interval is set to one hour, which means that after every full hour, a re-attestation will take place
 automatically.
-Afterwards, the RAT driver implementations are registered to the RAT registries, using their unique cipher suite
+Afterwards, the RA driver implementations are registered to the RA registries, using their unique cipher suite
 identifier, their classes, as well as a driver-specific configuration. It is ensured that the later one is passed to
-the RAT driver immediately after creation and before execution. You can set it to null, if no RAT driver configuration is
+the RA driver immediately after creation and before execution. You can set it to null, if no RA driver configuration is
 required for your selected driver.
 
 ```kotlin
 import de.fhg.aisec.ids.idscp2.idscp_core.api.configuration.AttestationConfig
-import de.fhg.aisec.ids.idscp2.idscp_core.rat_registry.RatProverDriverRegistry
-import de.fhg.aisec.ids.idscp2.idscp_core.rat_registry.RatVerifierDriverRegistry
+import de.fhg.aisec.ids.idscp2.idscp_core.ra_registry.RaProverDriverRegistry
+import de.fhg.aisec.ids.idscp2.idscp_core.ra_registry.RaVerifierDriverRegistry
 
 fun main() {
 
      // create the attestation config using the builder pattern
      val localAttestationConfig = AttestationConfig.Builder()
-                     .setSupportedRatSuite(arrayOf(SGXProverDriver.ID, TPMProverDriver.ID))
-                     .setExpectedRatSuite(arrayOf(SGXVerifierDriver.ID, TPMVerifierDriver.ID))
-                     .setRatTimeoutDelay(60 * 60 * 1000) // rat timeout in ms, 1 hour
+                     .setSupportedRaSuite(arrayOf(SGXProverDriver.ID, TPMProverDriver.ID))
+                     .setExpectedRaSuite(arrayOf(SGXVerifierDriver.ID, TPMVerifierDriver.ID))
+                     .setRaTimeoutDelay(60 * 60 * 1000) // ra timeout in ms, 1 hour
                      .build()
 
-     // register supported RAT prover driver implementations to the RAT registries
-     RatProverDriverRegistry.registerDriver(
+     // register supported RA prover driver implementations to the RA registries
+     RaProverDriverRegistry.registerDriver(
             SGXProverDriver.ID, ::SGXProverDriver, sgxProverDriverConfig)
 
-     RatProverDriverRegistry.registerDriver(
+     RaProverDriverRegistry.registerDriver(
                  TPMProverDriver.ID, ::TPMProverDriver, tpmProverDriverConfig)
 
-     // register supported RAT verifier driver implementations to the RAT registries
-     RatVerifierDriverRegistry.registerDriver(
+     // register supported RA verifier driver implementations to the RA registries
+     RaVerifierDriverRegistry.registerDriver(
             SGXVerifierDriver.ID, ::SGXVerifierDriver, sgxVerifierDriverConfig)
 
-     RatVerifierDriverRegistry.registerDriver(
+     RaVerifierDriverRegistry.registerDriver(
                  TPMVerifierDriver.ID, ::TPMVerifierDriver, tpmVerifierDriverConfig)
 
      ...
