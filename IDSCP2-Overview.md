@@ -6,7 +6,7 @@ The IDSCP2 protocol can be divided into four components.
 These are the core, secure channel, DAPS and remote attestation.
 All but the core protocol are implemented using drivers.
 While a number of default drivers are provided, custom drivers can be implemented as described
-[here](IDSCP2-Driver-Development).
+[here](wiki/IDSCP2-Driver-Development).
 
 ### Core
 
@@ -24,7 +24,7 @@ The protocol may also request new DATs and re-attestation from the peer as well 
 the peer upon request.
 
 The core protocol is implemented using a finite state machine that is documented in detail
-[here](IDSCP2-Core).
+[here](wiki/IDSCP2-Core).
 
 ### DAPS
 
@@ -33,9 +33,9 @@ responsible for providing information about a peer using Dynamic Attribute Token
 Within IDSCP2, communication with the DAPS is handled by the DAPS Driver.
 A DAPS Driver provides functionality to obtain and verify DATs.
 
-The IDSCP2 repository provides the [AISEC DAPS Driver](AISEC-DAPS-Driver).
+The IDSCP2 repository provides the [AISEC DAPS Driver](wiki/AISEC-DAPS-Driver).
 Custom DAPS Drivers can be created as described
-[here](IDSCP2-Driver-Development#custom-daps-driver).
+[here](wiki/IDSCP2-Driver-Development#custom-daps-driver).
 
 ### Secure Channel
 
@@ -49,10 +49,10 @@ client has connected.
 The client immediately starts the IDSCP2 core state machine after it has completed the secure
 channel handshake.
 
-The [provided Secure Channel Driver](TLS1.3-Secure-Channel-Driver) provides an interface to
+The [provided Secure Channel Driver](wiki/TLS1.3-Secure-Channel-Driver) provides an interface to
 TLS 1.3.
 Drivers for other channel types can be implemented as described
-[here](IDSCP2-Driver-Development#custom-secure-channel).
+[here](wiki/IDSCP2-Driver-Development#custom-secure-channel).
 
 ### Remote Attestation
 
@@ -76,7 +76,7 @@ is embedded into IDSCP2 messages.
 Implementations of remote attestation drivers can be found in
 [this repository](https://github.com/industrial-data-space/idscp2-rat-drivers/tree/develop).
 Information about developing a custom driver can be found
-[here](IDSCP2-Driver-Development#custom-ra-driver).
+[here](wiki/IDSCP2-Driver-Development#custom-ra-driver).
 
 ## Handshake
 
@@ -87,6 +87,6 @@ The message flow of the Secure Channel and RA drivers are simplified for the sam
 
 This diagram does also not show DAT timeout, which can occur at any point after the hello messages
 are exchanged.
-For more information, consult the [core documentation](IDSCP2-Core)
+For more information, consult the [core documentation](wiki/IDSCP2-Core)
 
 ![](images/exampleHandshake.drawio.svg)

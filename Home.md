@@ -2,22 +2,22 @@ Welcome to the idscp2-java wiki!
 
 This repository contains the IDS Communication Protocol (IDSCP2).
 
-[IDSCP2 Overview](IDSCP2-Overview)
+[IDSCP2 Overview](wiki/IDSCP2-Overview)
 
-[User Documentation](IDSCP2-User-Documentation)
+[User Documentation](wiki/IDSCP2-User-Documentation)
 
-[User API](IDSCP2-User-API)
+[User API](wiki/IDSCP2-User-API)
 
-[Driver Development Documentation](IDSCP2-Driver-Development)
+[Driver Development Documentation](wiki/IDSCP2-Driver-Development)
 
-[IDSCP2 Core Documentation (FSM)](IDSCP2-Core)
+[IDSCP2 Core Documentation (FSM)](wiki/IDSCP2-Core)
 
 ----------------
 ## Driver implementations:
 
-[AISEC DAPS Driver](AISEC-DAPS-Driver)
+[AISEC DAPS Driver](wiki/AISEC-DAPS-Driver)
 
-[TLS1.3 Secure Channel Driver](TLS1.3-Secure-Channel-Driver)
+[TLS1.3 Secure Channel Driver](wiki/TLS1.3-Secure-Channel-Driver)
 
 The RA driver implementations are located at: [IDSCP2 RA Drivers](https://github.com/industrial-data-space/idscp2-rat-drivers/tree/develop)
 
