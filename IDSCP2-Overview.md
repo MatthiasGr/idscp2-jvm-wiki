@@ -8,6 +8,10 @@ All but the core protocol are implemented using drivers.
 While a number of default drivers are provided, custom drivers can be implemented as described
 [here](wiki/IDSCP2-Driver-Development).
 
+The following diagram shows the basics of how the four components interact.
+
+![](images/components.drawio.svg)
+
 ### Core
 
 As its name suggests, the core is at the center of the protocol.
