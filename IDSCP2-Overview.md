@@ -9,6 +9,7 @@ While a number of default drivers are provided, custom drivers can be implemente
 [here](wiki/IDSCP2-Driver-Development).
 
 The following diagram shows the basics of how the four components interact.
+Each connection between two components describes an interface that is provided by one and required by another component.
 
 ![](images/components.drawio.svg)
 
