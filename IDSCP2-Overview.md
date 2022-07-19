@@ -16,7 +16,7 @@ Each connection between two components describes an interface that is provided b
 ### Core
 
 As its name suggests, the core is at the center of the protocol.
-It defines the IDSCP2 message format and makes sure, that no data is lost and messages are
+It defines the IDSCP2 message format and makes sure that no data is lost and messages are
 delivered in order.
 
 It is responsible for orchestrating the other components after being started by the secure channel
