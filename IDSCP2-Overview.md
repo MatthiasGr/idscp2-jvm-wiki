@@ -92,6 +92,6 @@ The message flow of the Secure Channel and RA drivers are simplified for the sam
 
 This diagram does also not show DAT timeout, which can occur at any point after the hello messages
 are exchanged.
-For more information, consult the [core documentation](wiki/IDSCP2-Core)
+For more information, consult the [core documentation](IDSCP2-Core)
 
 ![](images/exampleHandshake.drawio.svg)
