@@ -8,6 +8,8 @@ This repository contains the IDS Communication Protocol (IDSCP2).
 
 [User API](wiki/IDSCP2-User-API)
 
+[Apache Camel API](wiki/Camel-Components)
+
 [Driver Development Documentation](wiki/IDSCP2-Driver-Development)
 
 [IDSCP2 Core Documentation (FSM)](wiki/IDSCP2-Core)
