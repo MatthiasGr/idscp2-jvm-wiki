@@ -126,7 +126,7 @@ The time in milliseconds before the component requests a new DAT and re-attestat
 #### `useIdsMessages`
 
 If set to `true`, the component will use IDS messages to communicate.
-IDS Messages are defined in the [IDS info-model](https://htmlpreview.github.io/?https://github.com/IndustrialDataSpace/InformationModel/blob/feature/message_taxonomy_description/model/communication/Message_Description.htm).
+For more information about IDS messages, see the [IDS Messages page](IDS-Messages) of this Wiki.
 
 For an example on how IDS messages can be used, see
 [this](https://github.com/Fraunhofer-AISEC/trusted-connector/blob/master/examples/route-examples/demo-route.xml)
