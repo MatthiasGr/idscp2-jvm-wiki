@@ -9,6 +9,15 @@ The respective Camel components are referred to as `idscp2server` and `idscp2cli
 Both components can act as a Producer and Consumer, meaning that they can be used in both the
 `<to />` and `<from />` nodes of Camel routes.
 
+The following section shows how the IDSCP2 Camel components can be used within a simple Ping-Pong
+exchange.
+The exchange is divided into three Camel routes with the message flow looking like this:
+
+![](images/camel-route.drawio.svg)
+
+Additional examples on how to use the IDSCP2 Camel components can be found in the
+[Trusted Connector repository](https://github.com/Fraunhofer-AISEC/trusted-connector/tree/master/examples/example-idscp2).
+
 ### Using an IDSCP2 client to send data
 
 The following excerpt constructs a simple IDSCP2 client sending a ping message to an example
